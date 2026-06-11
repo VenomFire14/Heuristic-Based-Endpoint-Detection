@@ -1,0 +1,62 @@
+10/06/2026
+
+Link: https://www.kentik.com/kentipedia/what-is-ebpf-extended-berkeley-packet-filter/
+
+Under these conditions, observing the network has conventionally required collecting and correlating data about network operations from a variety of servers. What’s more, it requires getting network data from individual containers that, in most cases, don’t log their networking operations to their host operating system, or even store network-related data persistently. To address these challenges, teams had to deploy a complex array of userland applications—often, a network monitoring agent on each server, as well as an agent that could collect networking data from each container through a service mesh, sidecar architecture or similar approach.
+
+eBPF offers a much simpler, more elegant solution to network observability. With eBPF, teams can run kernel-level programs that observe network operations for all containers running on a server. In this way, eBPF eliminates the need to deploy agents for each container separately. It also provides access to low-level networking data that may not be available from within a container, whose access to kernel-level resources is usually restricted (unless the container runs in privileged mode, which is not a recommended approach).
+
+In this way, eBPF helps address one of the core challenges of network observability in modern applications. It provides a secure, simple, and efficient means of understanding what is happening within all Linux-based endpoints.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+11/06/2026
+
+Link: https://docs.ebpf.io/
+
+eBPF program are typically written in C and compiled with LLVM, but this isn't necessarily the only way to do it. Any program which can generate byte-code (following the eBPF instruction set) can author eBPF programs. eBPF programs are typically serialized into a relocatable ELF file.
+
+When the loader loads a program the kernel will verify that the program is "safe". This job is done by a component of the kernel called the verifier. "safe" in this context means that programs are not allowed to crash the kernel or break critical components. eBPF programs have to pass quite a number of stringent requirements before being allowed anywhere near kernel memory. For more details checkout the verifier page.
+
+helper functions, take up to 5 arguments and return a single return value. Not every program type can execute every helper call to enforce the same restrictions the verifier does.
+
+Precaution
+KFuncs are not considered UAPI (User-space API) and are not subject to the same stability guarantees as the UAPI (see contrast with helper functions). Users of KFuncs are advised to use defensive programming techniques to handle the case where a KFunc is not available or has changed.
+
+Applications can transfer copies of these file descriptors to other processes via inter-process communication techniques like UNIX sockets which is quite universal. A more eBPF special technique is called pinning, which allows the loader to reference a BPF object with a special file called a pin. These pins can only be made in the special BPF File System which needs to be mounted somewhere (typically at /sys/bpf but this can change between Linux distributions). As long as a pin exists it will keep the object it refers to alive. These pins can be read by any program that has permissions to access the pin file and get a reference of the object that way. Thus, multiple program can share the same objects at the same time.
+
+Maps come in a variety of types, each of which works in a slightly different way, like different data structures.
+
+These maps should be located in the .maps section for loaders to properly pick them up.
+
+struct my_value { int x, y, z; };
+
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __type(key, int);
+    __type(value, struct my_value);
+    __uint(max_entries, 16);
+} icmpcnt SEC(".maps");
+The __uint, __type, __array and __ulong macros used 
+in the above example are typically used to make the type definition easier to read.
+
+The name part of these macros refers to field names of the to be created structure. Not all names are recognized by libbpf and compatible libraries. However, the following are:
+
+type (__uint) - enum, see the map types index for all valid options.
+max_entries (__uint) - int indicating the maximum amount of entries.
+map_flags (__uint) - a bitfield of flags, see flags section in map load syscall command for valid options.
+numa_node (__uint) - the ID of the NUMA node on which to place the map.
+key_size (__uint) - the size of the key in bytes. This field is mutually exclusive with the key field.
+key (__type) - the type of the key. This field is mutually exclusive with the key_size field.
+value_size (__uint) - the size of the value in bytes. This field is mutually exclusive with the value fields.
+value (__type) - the type of the value. This field is mutually exclusive with the value_size fields.
+values (__array) - populate the content of a map during loading, see static values section for details.
+pinning (__uint) - LIBBPF_PIN_BY_NAME or LIBBPF_PIN_NONE see pinning page for details.
+map_extra (__uint) - Addition settings, currently only used by bloom filters which use the lowest 4 bits to indicate the amount of hashes used in the bloom filter.
+Typically, only the type, key/key_size, value/values/value_size, and max_entries fields are required.
+
+Caution
+Programs are not allowed to read arbitrary memory - Being able to read any memory would allow a program to leak sensitive information. There are exceptions, tracing programs have access to helpers that allow them to read memory in a controlled way. But these program types require root privileges and thus are not a security risk.
+
+The basic premise is that the verifier checks every possible permutation of a program mathematically. It starts by walking the code and constructing a graph based on branching instructions. It will reject any statically-dead-code unreachable code might be a link in an exploit chain.
+
+

@@ -1,0 +1,68 @@
+Steps : All
+
+To check kernel version
+$ uname -r
+
+kernel version > 5.8
+
+packages installation
+$ sudo apt update
+$ sudo apt install -y bpfcc-tools python3-bpfcc linux-headers-$(uname -r) build-essential cmake llvm clang libelf-dev   
+
+verify installation
+$ sudo python3 -c "from bcc import BPF; print('BCC Ready')"
+
+Python Test Code
+------------------------------------------------------------------------------------------------------
+
+#!/usr/bin/env python3
+from bcc import BPF
+
+# 1. The eBPF C Code (Kernel Space)
+bpf_code = """
+#include <linux/sched.h>
+
+// Define the data structure to send to Python
+struct data_t {
+    u32 pid;
+    u32 uid;
+    char comm[TASK_COMM_LEN];
+};
+
+// Define the Ring Buffer
+BPF_PERF_OUTPUT(events);
+
+// Function attached to the execve syscall
+int trace_exec(struct pt_regs *ctx) {
+    struct data_t data = {};
+    
+    // Capture current process info
+    data.pid = bpf_get_current_pid_tgid() >> 32;
+    data.uid = bpf_get_current_uid_gid() & 0xFFFFFFFF;
+    bpf_get_current_comm(&data.comm, sizeof(data.comm));
+
+    // Send data to Ring Buffer
+    events.perf_submit(ctx, &data, sizeof(data));
+    return 0;
+}
+"""
+
+# 2. Load and Attach (User Space)
+b = BPF(text=bpf_code)
+b.attach_kprobe(event=b.get_syscall_fnname("execve"), fn_name="trace_exec")
+
+print("ZD2 Sensor Active: Monitoring process executions...")
+
+# 3. Callback function to process events
+def print_event(cpu, data, size):
+    event = b["events"].event(data)
+    print(f"ALERT: New Process | PID: {event.pid} | UID: {event.uid} | Cmd: {event.comm.decode()}")
+
+# 4. Start Polling the Ring Buffer
+b["events"].open_perf_buffer(print_event)
+while True:
+    try:
+        b.perf_buffer_poll()
+    except KeyboardInterrupt:
+        exit()   
+--------------------------------------------------------------------------------------------------------------------
