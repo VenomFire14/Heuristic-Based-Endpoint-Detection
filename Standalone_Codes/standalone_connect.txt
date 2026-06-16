@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""
+Standalone connect sensor using tracepoint.
+Monitors outbound TCP/UDP connections.
+"""
+
+from bcc import BPF
+import os
+import sys
+import resource
+import socket
+import struct
+
+# --- C Code ---
+BPF_CODE = """
+#include <uapi/linux/ptrace.h>
+#include <uapi/linux/limits.h>
+#include <linux/sched.h>
+#include <net/inet_sock.h>
+
+struct connect_event_t {
+    u32 pid;
+    u32 uid;
+    char comm[TASK_COMM_LEN];
+    u32 daddr_v4;
+    u32 daddr_v6[4];
+    u16 dport;
+    u16 family;
+};
+
+BPF_PERF_OUTPUT(events);
+
+static inline bool should_ignore() {
+    if (bpf_get_current_pid_tgid() >> 32 == 0) return true;
+    return false;
+}
+
+TRACEPOINT_PROBE(syscalls, sys_enter_connect) {
+    if (should_ignore()) return 0;
+
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    u32 pid = pid_tgid >> 32;
+    u32 uid = bpf_get_current_uid_gid() & 0xFFFFFFFF;
+
+    struct connect_event_t event = {};
+    event.pid = pid;
+    event.uid = uid;
+    bpf_get_current_comm(&event.comm, sizeof(event.comm));
+
+    struct sockaddr *addr = (struct sockaddr *)args->uservaddr;
+    short family = 0;
+    
+    // Safely read family
+    if (bpf_probe_read_user(&family, sizeof(family), &addr->sa_family) != 0) return 0;
+    event.family = family;
+
+    if (family == AF_INET) {
+        struct sockaddr_in *addr_in = (struct sockaddr_in *)addr;
+        bpf_probe_read_user(&event.daddr_v4, sizeof(event.daddr_v4), &addr_in->sin_addr.s_addr);
+        bpf_probe_read_user(&event.dport, sizeof(event.dport), &addr_in->sin_port);
+        event.dport = ntohs(event.dport);
+    } else if (family == AF_INET6) {
+        struct sockaddr_in6 *addr_in6 = (struct sockaddr_in6 *)addr;
+        bpf_probe_read_user(&event.daddr_v6, sizeof(event.daddr_v6), &addr_in6->sin6_addr.in6_u.u6_addr32);
+        bpf_probe_read_user(&event.dport, sizeof(event.dport), &addr_in6->sin6_port);
+        event.dport = ntohs(event.dport);
+    } else {
+        return 0; // Ignore Unix sockets
+    }
+
+    events.perf_submit(args, &event, sizeof(event));
+    return 0;
+}
+"""
+
+def print_event(cpu, data, size):
+    event = b["events"].event(data)
+    comm = event.comm.decode('utf-8', errors='ignore')
+    
+    ip_str = ""
+    if event.family == socket.AF_INET:
+        ip_str = socket.inet_ntoa(struct.pack('I', event.daddr_v4))
+    elif event.family == socket.AF_INET6:
+        ip_str = "IPv6::" + ":".join(f"{x:02x}" for x in event.daddr_v6[:2])
+    
+    print(f"\033[94m[NET]\033[0m PID:{event.pid} UID:{event.uid} | {comm} -> {ip_str}:{event.dport}")
+
+if __name__ == "__main__":
+    if os.geteuid() != 0:
+        print("Error: Must run as root")
+        sys.exit(1)
+        
+    resource.setrlimit(resource.RLIMIT_MEMLOCK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+
+    try:
+        b = BPF(text=BPF_CODE)
+        print("Monitoring connect syscalls... (Try: curl http://example.com)")
+        b["events"].open_perf_buffer(print_event)
+        
+        while True:
+            b.perf_buffer_poll(timeout=100)
+    except KeyboardInterrupt:
+        print("\nStopped.")
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)   
