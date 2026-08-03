@@ -58,7 +58,7 @@ TRACEPOINT_PROBE(syscalls, sys_enter_connect) {
         struct sockaddr_in *addr_in = (struct sockaddr_in *)addr;
         bpf_probe_read_user(&event.daddr_v4, sizeof(event.daddr_v4), &addr_in->sin_addr.s_addr);
         bpf_probe_read_user(&event.dport, sizeof(event.dport), &addr_in->sin_port);
-        event.dport = ntohs(event.dport);
+        event.dport = __builtin_bswap16(event.dport);
     } else if (family == AF_INET6) {
         struct sockaddr_in6 *addr_in6 = (struct sockaddr_in6 *)addr;
         bpf_probe_read_user(&event.daddr_v6, sizeof(event.daddr_v6), &addr_in6->sin6_addr.in6_u.u6_addr32);
@@ -81,7 +81,10 @@ def print_event(cpu, data, size):
     if event.family == socket.AF_INET:
         ip_str = socket.inet_ntoa(struct.pack('I', event.daddr_v4))
     elif event.family == socket.AF_INET6:
-        ip_str = "IPv6::" + ":".join(f"{x:02x}" for x in event.daddr_v6[:2])
+    socket.inet_ntop(
+    socket.AF_INET6,
+    bytes(event.daddr_v6)
+)
     
     print(f"\033[94m[NET]\033[0m PID:{event.pid} UID:{event.uid} | {comm} -> {ip_str}:{event.dport}")
 

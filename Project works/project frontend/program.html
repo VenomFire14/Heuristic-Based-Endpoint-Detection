@@ -1,0 +1,364 @@
+import React from "react";
+
+const stats = [
+{ title: "Total Attacks", value: "1,248", icon: "⚔️" },
+{ title: "Critical Alerts", value: "12", icon: "🔴" },
+{ title: "Blocked Attacks", value: "921", icon: "🛡️" },
+{ title: "Active Incidents", value: "5", icon: "🚨" },
+];
+
+const recentAlerts = [
+{
+time: "10:42:31",
+type: "Reverse Shell",
+source: "192.168.1.105",
+severity: "Critical",
+status: "Blocked",
+},
+{
+time: "10:41:22",
+type: "Privilege Escalation",
+source: "10.0.0.25",
+severity: "High",
+status: "Alert",
+},
+{
+time: "10:40:15",
+type: "Suspicious Command",
+source: "172.16.0.10",
+severity: "Medium",
+status: "Logged",
+},
+{
+time: "10:38:52",
+type: "Command Injection",
+source: "192.168.1.22",
+severity: "Critical",
+status: "Blocked",
+},
+];
+
+function App() {
+return (
+<div className="min-h-screen bg-slate-950 text-white flex">
+
+    {/* SIDEBAR */}
+    <aside className="w-64 bg-slate-900 border-r border-slate-800 p-5">
+
+        {/* Logo */}
+        <div className="flex items-center gap-3 mb-10">
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                🛡️
+            </div>
+
+            <div>
+                <h1 className="font-bold text-lg">ZD2</h1>
+                <p className="text-xs text-slate-400">
+                    Security Platform
+                </p>
+            </div>
+        </div>
+
+        {/* Menu */}
+        <nav className="space-y-2">
+
+            <MenuItem icon="📊" text="Dashboard" active />
+            <MenuItem icon="🚨" text="Alerts" />
+            <MenuItem icon="⚔️" text="Attack Events" />
+            <MenuItem icon="🖥️" text="Hosts" />
+            <MenuItem icon="🌐" text="Source IPs" />
+            <MenuItem icon="🔍" text="Threat Hunting" />
+            <MenuItem icon="📈" text="Analytics" />
+
+        </nav>
+
+        {/* Bottom Menu */}
+        <div className="absolute bottom-5 w-52 space-y-2">
+            <MenuItem icon="⚙️" text="Settings" />
+            <MenuItem icon="👤" text="Profile" />
+        </div>
+
+    </aside>
+
+
+    {/* MAIN CONTENT */}
+    <main className="flex-1">
+
+        {/* TOPBAR */}
+        <header className="h-16 border-b border-slate-800 bg-slate-900 px-8 flex items-center justify-between">
+
+            <div>
+                <h2 className="text-xl font-semibold">
+                    Security Dashboard
+                </h2>
+
+                <p className="text-xs text-slate-400">
+                    Real-time system security monitoring
+                </p>
+            </div>
+
+            <div className="flex items-center gap-4">
+
+                <div className="flex items-center gap-2 text-sm">
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    System Online
+                </div>
+
+                <div className="w-9 h-9 bg-slate-700 rounded-full flex items-center justify-center">
+                    LC
+                </div>
+
+            </div>
+
+        </header>
+
+
+        {/* DASHBOARD CONTENT */}
+        <section className="p-8">
+
+            {/* STAT CARDS */}
+            <div className="grid grid-cols-4 gap-5 mb-8">
+
+                {stats.map((stat) => (
+                <div key={stat.title} className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+
+                    <div className="flex justify-between items-center">
+
+                        <div>
+                            <p className="text-sm text-slate-400">
+                                {stat.title}
+                            </p>
+
+                            <h3 className="text-3xl font-bold mt-2">
+                                {stat.value}
+                            </h3>
+                        </div>
+
+                        <div className="text-2xl">
+                            {stat.icon}
+                        </div>
+
+                    </div>
+
+                </div>
+                ))}
+
+            </div>
+
+
+            {/* CHART + LIVE FEED */}
+            <div className="grid grid-cols-3 gap-6 mb-8">
+
+                {/* ATTACK CHART */}
+                <div className="col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6">
+
+                    <div className="flex justify-between mb-6">
+
+                        <div>
+                            <h3 className="font-semibold">
+                                Attack Activity
+                            </h3>
+
+                            <p className="text-xs text-slate-400">
+                                Number of detected attacks
+                            </p>
+                        </div>
+
+                        <select className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+                            <option>Last 24 Hours</option>
+                            <option>Last 7 Days</option>
+                            <option>Last 30 Days</option>
+                        </select>
+
+                    </div>
+
+                    {/* Simple Chart Placeholder */}
+                    <div className="h-64 flex items-end gap-4 border-b border-slate-700">
+
+                        {[40, 70, 45, 90, 60, 80, 50, 100, 65, 75, 55, 85].map(
+                        (height, index) => (
+                        <div key={index} className="flex-1 bg-blue-600 rounded-t-md" style={{ height: `${height}%` }} />
+                        )
+                        )}
+
+                    </div>
+
+                </div>
+
+
+                {/* LIVE ATTACK FEED */}
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+
+                    <div className="flex justify-between mb-5">
+
+                        <h3 className="font-semibold">
+                            Live Attack Feed
+                        </h3>
+
+                        <span className="text-xs text-green-400">
+                            ● LIVE
+                        </span>
+
+                    </div>
+
+                    <div className="space-y-4">
+
+                        <LiveEvent color="red" title="Reverse Shell Detected" time="10:42:31" />
+
+                        <LiveEvent color="orange" title="Privilege Escalation" time="10:41:22" />
+
+                        <LiveEvent color="yellow" title="Suspicious Command" time="10:40:15" />
+
+                        <LiveEvent color="red" title="Command Injection" time="10:38:52" />
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            {/* RECENT ATTACKS */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl">
+
+                <div className="p-6 border-b border-slate-800">
+                    <h3 className="font-semibold">
+                        Recent Security Events
+                    </h3>
+
+                    <p className="text-xs text-slate-400 mt-1">
+                        Latest detected security activities
+                    </p>
+                </div>
+
+
+                <table className="w-full">
+
+                    <thead className="text-left text-xs text-slate-400 bg-slate-800/40">
+
+                        <tr>
+                            <th className="px-6 py-4">Time</th>
+                            <th>Attack Type</th>
+                            <th>Source IP</th>
+                            <th>Severity</th>
+                            <th>Status</th>
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        {recentAlerts.map((alert, index) => (
+
+                        <tr key={index} className="border-t border-slate-800 hover:bg-slate-800/40">
+
+                            <td className="px-6 py-4 text-sm text-slate-400">
+                                {alert.time}
+                            </td>
+
+                            <td className="text-sm font-medium">
+                                {alert.type}
+                            </td>
+
+                            <td className="text-sm text-slate-400">
+                                {alert.source}
+                            </td>
+
+                            <td>
+                                <SeverityBadge severity={alert.severity} />
+                            </td>
+
+                            <td className="text-sm">
+                                {alert.status}
+                            </td>
+
+                        </tr>
+
+                        ))}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+);
+}
+
+
+/* SIDEBAR MENU ITEM */
+function MenuItem({ icon, text, active }) {
+
+return (
+<div className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition ${ active
+    ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white" }`}>
+
+    <span>{icon}</span>
+
+    <span className="text-sm font-medium">
+        {text}
+    </span>
+
+</div>
+);
+}
+
+
+/* LIVE EVENT */
+function LiveEvent({ color, title, time }) {
+
+const colors = {
+red: "bg-red-500",
+orange: "bg-orange-500",
+yellow: "bg-yellow-500",
+};
+
+return (
+
+<div className="flex gap-3">
+
+    <span className={`w-2 h-2 rounded-full mt-2 ${colors[color]}`} />
+
+    <div>
+
+        <p className="text-sm font-medium">
+            {title}
+        </p>
+
+        <p className="text-xs text-slate-500">
+            {time}
+        </p>
+
+    </div>
+
+</div>
+
+);
+}
+
+
+/* SEVERITY BADGE */
+function SeverityBadge({ severity }) {
+
+const styles = {
+Critical: "bg-red-500/10 text-red-400",
+High: "bg-orange-500/10 text-orange-400",
+Medium: "bg-yellow-500/10 text-yellow-400",
+};
+
+return (
+
+<span className={`px-3 py-1 rounded-full text-xs ${ styles[severity] }`}>
+    {severity}
+</span>
+
+);
+}
+
+export default App;
